@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>bin\$(Configuration)\Mods\mod</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <GameVersion>1.19.7</GameVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+		<Reference Include="$(VINTAGE_STORY)\$(GameVersion)\VintagestoryAPI.dll">
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="$(VINTAGE_STORY)\$(GameVersion)\VintagestoryLib.dll">
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="$(VINTAGE_STORY)\$(GameVersion)\Mods\VSCreativeMod.dll">
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="$(VINTAGE_STORY)\$(GameVersion)\Mods\VSEssentials.dll">
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="$(VINTAGE_STORY)\$(GameVersion)\Mods\VSSurvivalMod.dll">
+			<Private>false</Private>  
+		</Reference>
+    <Content Include="modinfo.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="VoxReader" Version="4.1.1" />
+    
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,12 @@
+{
+  "type": "code",
+  "name": "Automatic chiselling",
+  "modid": "autochisel",
+  "description": "Automatic chiselling based on a .vox file.",
+  "authors": [ "Skif_97" ],
+  "version": "0.0.4",
+  "side": "Client",
+  "dependencies": {
+    "game": "1.19.0"
+  }
+}
