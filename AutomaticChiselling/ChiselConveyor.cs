@@ -49,19 +49,28 @@ namespace AutomaticChiselling
         private int stage = 0;
         // private int totalProgres = 0;
         private List<BlockPos> requiredBlocksList;
+        private int requiredBlocksCount = 0;
+        private int dimensionsBlocksCount = 0;
         private List<BlockPos> dimensionsBlocksList;
         private DictionaryVoxelsInBlock voxelsInBlock;
+        private int packetPerIteration = 1;
+        private int packetCounter = 0;
         private long tickerID;
-        private MyVoxFormat myVox;
+        private long tickerIDforToolChanger;
+        private int toolChangerIterationCounter = 0;
+        private VoxelsStorage myVox;
         private bool acticeChiseling = false; 
+        private int progress =0;
         long lastReminder = 0;
 
-        public ChiselConveyor(ICoreClientAPI _capi, MyVoxFormat _myVox)
+        public ChiselConveyor(ICoreClientAPI _capi, VoxelsStorage _storage)
         {
             capi = _capi;
-            myVox = _myVox;
+            myVox = _storage;
             requiredBlocksList = myVox.GetRequiredBlocksList();
+            requiredBlocksCount = requiredBlocksList.Count;
             dimensionsBlocksList = myVox.GetDimensionsBlocksList();
+            dimensionsBlocksCount = dimensionsBlocksList.Count;
             voxelsInBlock = myVox.GetVoxelsInBlocks();
         }
 
@@ -74,7 +83,16 @@ namespace AutomaticChiselling
             iteratorLayer2 = 0;
             iteratorLayer3 = 0;
             iteratorLayer4 = 0;
-            tickerID = capi.World.RegisterGameTickListener(OneStep, 25);
+            toolChangerIterationCounter = 0;
+            progress = 0;
+            if (capi.IsSinglePlayer) 
+            {
+                tickerID = capi.World.RegisterGameTickListener(OneStep, 10);
+            }
+            else 
+            {
+                tickerID = capi.World.RegisterGameTickListener(OneStep, 100);
+            }
         }
 
         public void PauseConveyor()
@@ -84,7 +102,14 @@ namespace AutomaticChiselling
 
         public void ResumeConveyor()
         {
-            tickerID = capi.World.RegisterGameTickListener(OneStep, 25);
+            if (capi.IsSinglePlayer)
+            {
+                tickerID = capi.World.RegisterGameTickListener(OneStep, 10);
+            }
+            else
+            {
+                tickerID = capi.World.RegisterGameTickListener(OneStep, 100);
+            }
         }
 
         public void StopConveyor()
@@ -93,10 +118,12 @@ namespace AutomaticChiselling
             capi.World.UnregisterGameTickListener(tickerID);
             //blockPos = 0;
             stage = 0;
+            toolChangerIterationCounter = 0;
             iteratorLayer1 = 0;
             iteratorLayer2 = 0;
             iteratorLayer3 = 0;
             iteratorLayer4 = 0;
+            progress = 0;
         }
 
         public bool СhisellingActive() 
@@ -109,7 +136,7 @@ namespace AutomaticChiselling
             bool flag = false;
             BlockPos cureentPos = dimensionsBlocksList.First();
             //lastBlockPos = cureentPos
-            if (!myVox.GetRequiredBlocksList().Contains(cureentPos))
+            if (!requiredBlocksList.Contains(cureentPos))
             {
                 if (!ChiselDetecter())
                 {
@@ -122,7 +149,7 @@ namespace AutomaticChiselling
             dimensionsBlocksList.Remove(cureentPos);
             if (dimensionsBlocksList.Count == 0)
             {
-                stage++;
+                stageUpper();
                 return true;
             }
             return flag;
@@ -152,7 +179,7 @@ namespace AutomaticChiselling
             if (requiredBlocksList.Count == 0)
             {
                 requiredBlocksList = myVox.GetRequiredBlocksList();
-                stage++;
+                stageUpper();
                 return true;
             }
             return flag;
@@ -190,7 +217,7 @@ namespace AutomaticChiselling
             if (requiredBlocksList.Count == 0)
             {
                 requiredBlocksList = myVox.GetRequiredBlocksList();
-                stage++;
+                stageUpper();
                 return true;
             }
             return flag;
@@ -236,7 +263,7 @@ namespace AutomaticChiselling
             if (requiredBlocksList.Count == 0)
             {
                 requiredBlocksList = myVox.GetRequiredBlocksList();
-                stage++;
+                stageUpper();
                 return true;
             }
             return flag;
@@ -290,11 +317,70 @@ namespace AutomaticChiselling
             if (requiredBlocksList.Count == 0)
             {
                 requiredBlocksList = myVox.GetRequiredBlocksList();
-                stage++;
+                stageUpper();
                 return true;
             }
             return flag;
         }
+        private void stageUpper() 
+        {
+            stage++;
+            if (stage < 5) 
+            {
+                capi.World.UnregisterGameTickListener(tickerID);
+                tickerIDforToolChanger = capi.World.RegisterGameTickListener(ToolChenger, 200);
+            }
+
+        }
+
+        private void ToolChenger(float f) 
+        {
+            BlockPos cureentPos = requiredBlocksList.First();
+            BlockSelection blockSel = new BlockSelection(cureentPos, BlockFacing.NORTH, capi.World.BlockAccessor.GetBlock(cureentPos));
+            switch (stage)
+            {
+                case 1: 
+                    {
+                        SetToolMode(3, blockSel);
+                        toolChangerIterationCounter++;
+                        break; //3
+                    }
+                case 2: 
+                    {
+                        SetToolMode(2, blockSel);
+                        toolChangerIterationCounter++;
+                        break; //2
+                    }
+                case 3: 
+                    {
+                        SetToolMode(1, blockSel);
+                        toolChangerIterationCounter++;
+                        break; //1
+                    }
+                case 4: 
+                    {
+                        SetToolMode(0, blockSel);
+                        toolChangerIterationCounter++;
+                        break; //0
+                    }
+
+            }
+            if (toolChangerIterationCounter >= 10) 
+            {
+                toolChangerIterationCounter = 0;
+                capi.World.UnregisterGameTickListener(tickerIDforToolChanger);
+                if (capi.IsSinglePlayer)
+                {
+                    tickerID = capi.World.RegisterGameTickListener(OneStep, 10);
+                }
+                else
+                {
+                    tickerID = capi.World.RegisterGameTickListener(OneStep, 100);
+                }
+
+            }
+        }
+
 
 
         private void ChiselReminder()
@@ -330,36 +416,75 @@ namespace AutomaticChiselling
         }
 
 
-        private void OneStep(float time) 
+        private void OneStep(float time)
         {
+            int progress = 0;
+
             if (stage == 0)
             {
                 while (!Stage0());
+                progress = (int)Math.Round((double)(dimensionsBlocksList.Count - requiredBlocksCount) / (dimensionsBlocksCount - requiredBlocksCount) * 5);
             }
             if (stage == 1) 
             {
                 while (!Stage1()) ;
+                progress = (int)Math.Round((double)(requiredBlocksCount - requiredBlocksList.Count) / requiredBlocksCount * 5) + 5;
             }
             if (stage == 2) 
             {
                 while (!Stage2()) ;
+                progress = (int)Math.Round((double)(requiredBlocksCount - requiredBlocksList.Count) / requiredBlocksCount * 10) + 10;
             }
             if (stage == 3) 
             {
                 while (!Stage3()) ;
+                progress = (int)Math.Round((double)(requiredBlocksCount - requiredBlocksList.Count) / requiredBlocksCount * 20) + 20;
             }
             if (stage == 4) 
             {
                 while (!Stage4()) ;
+                progress = (int)Math.Round((double)(requiredBlocksCount - requiredBlocksList.Count) / requiredBlocksCount * 60) + 40;
             }
 
             if (stage >= 5) 
             { 
                 StopConveyor();
                 capi.ShowChatMessage("Chiseling completed!!!");
+                return;
+            }
+
+            if(packetCounter < packetPerIteration) 
+            {
+                packetCounter++;
+                OneStep(0);
+            }
+            else 
+            {
+                packetCounter = 0;
+            }
+
+            if (progress > this.progress) 
+            {
+                capi.ShowChatMessage("Percent completed:" + progress);
+                this.progress = progress;
             }
 
         }
+
+        public bool SetPacketPerIteration(int packetLimit) 
+        {
+            if (packetLimit >= 1 && packetLimit <= 50)
+            {
+                packetPerIteration = packetLimit;
+                return true;
+            }
+            else 
+            {
+                capi.ShowChatMessage("The packet limit value must be from 1 to 50.");
+                return false;
+            }
+        }
+
 
 
         private bool OneStepChiseling(BlockPos localBlockPos, int toolMode, Vec3i layer1, Vec3i layer2, Vec3i layer3, Vec3i layer4)

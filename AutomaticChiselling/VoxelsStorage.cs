@@ -1,11 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Metrics;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using VoxReader.Interfaces;
@@ -13,7 +9,7 @@ using VoxReader.Interfaces;
 namespace AutomaticChiselling
 {
     using DictionaryVoxelsInBlock = Dictionary<BlockPos, Dictionary<Vec3i, Dictionary<Vec3i, Dictionary<Vec3i, List<Vec3i>>>>>;
-    public class MyVoxFormat
+    public class VoxelsStorage
     {
         DictionaryVoxelsInBlock VoxelsInBlocks;
 
@@ -21,15 +17,14 @@ namespace AutomaticChiselling
         Vec3i BlocksOffset = new Vec3i(0,0,0);
         Vec3i MinPos;
         Vec3i MaxPos;
-        string Allign = "CENTER";
+        ModelAllign Allign = ModelAllign.Center;
         Vec3i BlockCorrection = new Vec3i(0,0,0);
 
-        string voxFileName;
+        string voxFileName = "";
         IVoxFile voxFile;
         List<Vec3i> rawVoxels;
 
-
-        public MyVoxFormat(string filename) 
+        public VoxelsStorage(string filename) 
         {
             if (!LoadFromFile(filename)) 
             {
@@ -37,9 +32,7 @@ namespace AutomaticChiselling
             }
             voxFileName = filename;
             LoadRawVoxels();
-            ApplyAllignModel();
-            ConvertToMyFormat();
-            FindMinMaxPos();
+            UpdateModel();
 
         }
 
@@ -121,33 +114,32 @@ namespace AutomaticChiselling
             int correctY = 0;
             int correctZ = 0;
 
-            switch (Allign) //сделать енумератор
+            switch (Allign)
             {
-                case "SE":
+                case ModelAllign.Southeast:
                     break;
 
-                case "NE":
+                case ModelAllign.Northeast:
                     correctX = (BlockSizeX * 16 - sizeX);
                     BlockCorrection = new Vec3i(BlockSizeX, 0, 0);
                     break;
 
-                case "SW":
+                case ModelAllign.Southwest:
                     correctZ = (BlockSizeZ * 16 - sizeZ);
                     BlockCorrection = new Vec3i(0, 0, BlockSizeZ);
                     break;
-                case "NW":
+                case ModelAllign.Northwest:
                     correctX = (BlockSizeX * 16 - sizeX);
                     correctZ = (BlockSizeZ * 16 - sizeZ);
                     BlockCorrection = new Vec3i(BlockSizeX, 0, BlockSizeZ);
                     break;
 
-                case "CENTER":
+                default: //center
                     correctX = (int)Math.Truncate((BlockSizeX * 16 - sizeX) / 2f);
                     correctZ = (int)Math.Truncate((BlockSizeZ * 16 - sizeZ) / 2f);
                     BlockCorrection = new Vec3i((int)Math.Truncate(BlockSizeX / 2f), 0, (int)Math.Truncate(BlockSizeZ / 2f));
                     break;
 
-                default: break;
             }
 
             //делаем корректировку модели 
@@ -235,9 +227,17 @@ namespace AutomaticChiselling
             UpdateModel();
         }
 
-        public void SetAllignModel(string align) 
+        public void SetAllignModel(ModelAllign allign)
         {
-            Allign = align;
+            Allign = allign;
+            UpdateModel();
+        }
+
+        public void SetBlockVoxelsOffsetAndAllign(Vec3i offsetBlocks, Vec3i offsetVoxels, ModelAllign allign) 
+        {
+            BlocksOffset = offsetBlocks;
+            VoxelsOffset = offsetVoxels;
+            Allign = allign;
             UpdateModel();
         }
 
@@ -350,9 +350,9 @@ namespace AutomaticChiselling
             return highlightList;
         }
 
-        public MyVoxFormat Clone() 
+        public VoxelsStorage Clone() 
         {
-            MyVoxFormat clone = new MyVoxFormat(voxFileName);
+            VoxelsStorage clone = new VoxelsStorage(voxFileName);
             clone.SetAllignModel(Allign);
             clone.SetVoxelsOffset(VoxelsOffset);
             clone.SetBlockOffset(BlocksOffset);
