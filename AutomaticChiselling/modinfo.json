@@ -4,7 +4,7 @@
   "modid": "autochisel",
   "description": "Automatic chiselling based on a .vox file.",
   "authors": [ "Skif_97" ],
-  "version": "0.0.4",
+  "version": "1.0.0",
   "side": "Client",
   "dependencies": {
     "game": "1.19.0"

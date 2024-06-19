@@ -117,6 +117,7 @@ namespace AutomaticChiselling
             switch (Allign)
             {
                 case ModelAllign.Southeast:
+                    BlockCorrection = new Vec3i(0, 0, 0);
                     break;
 
                 case ModelAllign.Northeast:

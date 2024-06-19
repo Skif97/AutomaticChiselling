@@ -26,6 +26,9 @@
 		<Reference Include="$(VINTAGE_STORY)\$(GameVersion)\Mods\VSSurvivalMod.dll">
 			<Private>false</Private>  
 		</Reference>
+		<Reference Include="$(VINTAGE_STORY)\$(GameVersion)\Lib\0Harmony.dll">
+			<Private>false</Private>  
+		</Reference>
     <Content Include="modinfo.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

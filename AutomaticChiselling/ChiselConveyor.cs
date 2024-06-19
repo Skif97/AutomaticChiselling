@@ -14,6 +14,7 @@ using Vintagestory.Common;
 using Vintagestory.GameContent;
 using Vintagestory.API.Client;
 using Vintagestory.Client;
+using Vintagestory.API.Common.Entities;
 
 namespace AutomaticChiselling
 {
@@ -74,8 +75,19 @@ namespace AutomaticChiselling
             voxelsInBlock = myVox.GetVoxelsInBlocks();
         }
 
+        public bool СhisellingActive()
+        {
+            return acticeChiseling;
+        }
+
         public void StartConveyor()
         {
+            requiredBlocksList = myVox.GetRequiredBlocksList();
+            requiredBlocksCount = requiredBlocksList.Count;
+            dimensionsBlocksList = myVox.GetDimensionsBlocksList();
+            dimensionsBlocksCount = dimensionsBlocksList.Count;
+            voxelsInBlock = myVox.GetVoxelsInBlocks();
+
             acticeChiseling = true;
             // blockPos = 0;
             stage = 0;
@@ -87,7 +99,7 @@ namespace AutomaticChiselling
             progress = 0;
             if (capi.IsSinglePlayer) 
             {
-                tickerID = capi.World.RegisterGameTickListener(OneStep, 10);
+                tickerID = capi.World.RegisterGameTickListener(OneStep, 20);
             }
             else 
             {
@@ -104,7 +116,7 @@ namespace AutomaticChiselling
         {
             if (capi.IsSinglePlayer)
             {
-                tickerID = capi.World.RegisterGameTickListener(OneStep, 10);
+                tickerID = capi.World.RegisterGameTickListener(OneStep, 20);
             }
             else
             {
@@ -126,10 +138,72 @@ namespace AutomaticChiselling
             progress = 0;
         }
 
-        public bool СhisellingActive() 
+
+        private void OneStep(float time)
         {
-            return acticeChiseling;
+            int progress = 0;
+
+            switch (stage)
+            {
+                case 0:
+                    {
+                        while (!Stage0()) ;
+                        progress = (int)Math.Round((((double)dimensionsBlocksCount - dimensionsBlocksList.Count) / dimensionsBlocksCount) * 5f);
+                        break;
+                    }
+                case 1:
+                    {
+                        while (!Stage1()) ;
+                        progress = (int)Math.Round((double)(requiredBlocksCount - requiredBlocksList.Count) / requiredBlocksCount * 5f) + 5;
+                        break;
+                    }
+                case 2:
+                    {
+                        while (!Stage2()) ;
+                        progress = (int)Math.Round((double)(requiredBlocksCount - requiredBlocksList.Count) / requiredBlocksCount * 10f) + 10;
+                        break;
+                    }
+                case 3:
+                    {
+                        while (!Stage3()) ;
+                        progress = (int)Math.Round((double)(requiredBlocksCount - requiredBlocksList.Count) / requiredBlocksCount * 20f) + 20;
+                        break;
+                    }
+                case 4:
+                    {
+                        while (!Stage4()) ;
+                        progress = (int)Math.Round((double)(requiredBlocksCount - requiredBlocksList.Count) / requiredBlocksCount * 60f) + 40;
+                        break;
+                    }
+            }
+
+            if (progress > this.progress)
+            {
+                capi.ShowChatMessage("Percent completed:" + progress);
+                this.progress = progress;
+            }
+
+            if (stage >= 5)
+            {
+                StopConveyor();
+                capi.ShowChatMessage("Chiseling completed!!!");
+                return;
+            }
+
+            if (packetCounter < packetPerIteration)
+            {
+                packetCounter++;
+                OneStep(0);
+            }
+            else
+            {
+                packetCounter = 0;
+            }
+
         }
+
+
+
 
         private bool Stage0()
         {
@@ -143,7 +217,8 @@ namespace AutomaticChiselling
                     ChiselReminder();
                     return true;
                 }
-                flag = BreakBlock(cureentPos);
+                BreakBlock(cureentPos);
+                flag = true;
             }
 
             dimensionsBlocksList.Remove(cureentPos);
@@ -169,6 +244,7 @@ namespace AutomaticChiselling
                 }
                 OneStepChiseling(cureentPos, 3, VoxelCore.Voxels[iteratorLayer1], VoxelCore.Voxels[0], VoxelCore.Voxels[0], VoxelCore.Voxels[0]);
                 flag = true;
+                
             }
             iteratorLayer1++;
             if (iteratorLayer1 > 7)
@@ -221,6 +297,7 @@ namespace AutomaticChiselling
                 return true;
             }
             return flag;
+           
         }
 
         private bool Stage3()
@@ -288,7 +365,7 @@ namespace AutomaticChiselling
                                 return true;
                             }
                             OneStepChiseling(cureentPos, 0, VoxelCore.Voxels[iteratorLayer1], VoxelCore.Voxels[iteratorLayer2], VoxelCore.Voxels[iteratorLayer3], VoxelCore.Voxels[iteratorLayer4]);
-                            flag = true;
+                            flag = true; 
                         }
                     }
                 }
@@ -328,7 +405,7 @@ namespace AutomaticChiselling
             if (stage < 5) 
             {
                 capi.World.UnregisterGameTickListener(tickerID);
-                tickerIDforToolChanger = capi.World.RegisterGameTickListener(ToolChenger, 200);
+                tickerIDforToolChanger = capi.World.RegisterGameTickListener(ToolChenger, 1000);
             }
 
         }
@@ -337,154 +414,58 @@ namespace AutomaticChiselling
         {
             BlockPos cureentPos = requiredBlocksList.First();
             BlockSelection blockSel = new BlockSelection(cureentPos, BlockFacing.NORTH, capi.World.BlockAccessor.GetBlock(cureentPos));
+            if(capi.World.Player.Entity.BlockSelection == null) 
+            {
+                capi.ShowChatMessage("To switch the chisel tool mode, look at any block for 3 seconds.");
+                return;
+            }
             switch (stage)
             {
                 case 1: 
                     {
                         SetToolMode(3, blockSel);
-                        toolChangerIterationCounter++;
                         break; //3
                     }
                 case 2: 
                     {
                         SetToolMode(2, blockSel);
-                        toolChangerIterationCounter++;
                         break; //2
                     }
                 case 3: 
                     {
                         SetToolMode(1, blockSel);
-                        toolChangerIterationCounter++;
                         break; //1
                     }
                 case 4: 
                     {
                         SetToolMode(0, blockSel);
-                        toolChangerIterationCounter++;
                         break; //0
                     }
 
             }
-            if (toolChangerIterationCounter >= 10) 
-            {
-                toolChangerIterationCounter = 0;
-                capi.World.UnregisterGameTickListener(tickerIDforToolChanger);
-                if (capi.IsSinglePlayer)
-                {
-                    tickerID = capi.World.RegisterGameTickListener(OneStep, 10);
-                }
-                else
-                {
-                    tickerID = capi.World.RegisterGameTickListener(OneStep, 100);
-                }
 
-            }
-        }
+            toolChangerIterationCounter++;
+            if (toolChangerIterationCounter < 3)
+            {
 
-
-
-        private void ChiselReminder()
-        {
-            if(capi.ElapsedMilliseconds - lastReminder > 2000) 
-            {
-                capi.ShowChatMessage("Take the chisel in your hand and don't let go!!!");
-                lastReminder = capi.ElapsedMilliseconds;
-            }
-        }
-
-        private bool ChiselDetecter() 
-        {
-            IPlayerInventoryManager inventoryManager = capi.World.Player.InventoryManager;
-            ItemSlot itemSlot = ((inventoryManager != null) ? inventoryManager.ActiveHotbarSlot : null);
-            ItemSlot slot = itemSlot;
-            object obj;
-            if (slot == null)
-            {
-                obj = null;
-            }
-            else
-            {
-                ItemStack itemstack = slot.Itemstack;
-                obj = ((itemstack != null) ? itemstack.Collectible : null);
-            }
-            ItemChisel itemChisel = obj as ItemChisel;
-            if (itemChisel == null)
-            {
-                return false;
-            }
-            return true;
-        }
-
-
-        private void OneStep(float time)
-        {
-            int progress = 0;
-
-            if (stage == 0)
-            {
-                while (!Stage0());
-                progress = (int)Math.Round((double)(dimensionsBlocksList.Count - requiredBlocksCount) / (dimensionsBlocksCount - requiredBlocksCount) * 5);
-            }
-            if (stage == 1) 
-            {
-                while (!Stage1()) ;
-                progress = (int)Math.Round((double)(requiredBlocksCount - requiredBlocksList.Count) / requiredBlocksCount * 5) + 5;
-            }
-            if (stage == 2) 
-            {
-                while (!Stage2()) ;
-                progress = (int)Math.Round((double)(requiredBlocksCount - requiredBlocksList.Count) / requiredBlocksCount * 10) + 10;
-            }
-            if (stage == 3) 
-            {
-                while (!Stage3()) ;
-                progress = (int)Math.Round((double)(requiredBlocksCount - requiredBlocksList.Count) / requiredBlocksCount * 20) + 20;
-            }
-            if (stage == 4) 
-            {
-                while (!Stage4()) ;
-                progress = (int)Math.Round((double)(requiredBlocksCount - requiredBlocksList.Count) / requiredBlocksCount * 60) + 40;
-            }
-
-            if (stage >= 5) 
-            { 
-                StopConveyor();
-                capi.ShowChatMessage("Chiseling completed!!!");
+                capi.ShowChatMessage("There are before switching the chisel mode, seconds left:" + (3 - toolChangerIterationCounter));
                 return;
             }
 
-            if(packetCounter < packetPerIteration) 
+            toolChangerIterationCounter = 0;
+            capi.ShowChatMessage("Chisel mode has been changed, thanks.");
+            capi.World.UnregisterGameTickListener(tickerIDforToolChanger);
+            if (capi.IsSinglePlayer)
             {
-                packetCounter++;
-                OneStep(0);
+                tickerID = capi.World.RegisterGameTickListener(OneStep, 20);
             }
-            else 
+            else
             {
-                packetCounter = 0;
+                tickerID = capi.World.RegisterGameTickListener(OneStep, 100);
             }
 
-            if (progress > this.progress) 
-            {
-                capi.ShowChatMessage("Percent completed:" + progress);
-                this.progress = progress;
-            }
 
         }
-
-        public bool SetPacketPerIteration(int packetLimit) 
-        {
-            if (packetLimit >= 1 && packetLimit <= 50)
-            {
-                packetPerIteration = packetLimit;
-                return true;
-            }
-            else 
-            {
-                capi.ShowChatMessage("The packet limit value must be from 1 to 50.");
-                return false;
-            }
-        }
-
 
 
         private bool OneStepChiseling(BlockPos localBlockPos, int toolMode, Vec3i layer1, Vec3i layer2, Vec3i layer3, Vec3i layer4)
@@ -531,10 +512,11 @@ namespace AutomaticChiselling
             if (itemChisel.GetToolMode(slot, capi.World.Player, blockSel) != toolMode)
             {
                 SetToolMode(toolMode, blockSel);
+              
                 // capi.ShowChatMessage("Размер откалывания, несоответствует, установлен на: " + size);
             }
 
-            if (localBlockPos == null )
+            if (localBlockPos == null)
             {
                 // capi.ShowChatMessage("Позиция блока не установлена.");
                 return false;
@@ -574,7 +556,7 @@ namespace AutomaticChiselling
             return true;
         }
 
-        private bool BreakBlock(BlockPos localBlockPos) 
+        private bool BreakBlock(BlockPos localBlockPos)
         {
 
             if (capi.World.BlockAccessor.GetBlock(localBlockPos).BlockId != 0)
@@ -590,14 +572,26 @@ namespace AutomaticChiselling
                 (capi.World as ClientMain)?.SendPacketClient(ClientPackets.BlockInteraction(bs, 0, 0));
                 // capi.World.BlockAccessor.BreakBlock(key.ToBlockPos(), capi.World.Player);
                 // capi.World.BlockAccessor.GetBlock(key.ToBlockPos()).OnHeldAttackStart(capi.World.Player.InventoryManager.ActiveHotbarSlot, capi.World.Player.Entity, new BlockSelection(key.ToBlockPos(), BlockFacing.NORTH, null) , null, ref eh);
-                return true;
+
             }
-            return false;
+            return true;
         }
 
 
         private void SetToolMode(int num, BlockSelection blockSele)
         {
+
+            //(capi.World as ClientMain)?.SendHandInteraction(2, blockSele, null, EnumHandInteract.None, EnumHandInteractNw.CancelHeldItemUse, false, EnumItemUseCancelReason.ReleasedMouse);
+
+            //(capi.World as ClientMain)?.SendHandInteraction(2, blockSele, null, EnumHandInteract.BlockInteract, EnumHandInteractNw.CancelBlockUse, false, EnumItemUseCancelReason.MovedAway);
+
+            // (capi.World as ClientMain)?.SendHandInteraction(2, blockSele, null, EnumHandInteract.None, EnumHandInteractNw.CancelBlockUse, false, EnumItemUseCancelReason.ReleasedMouse);
+            //this.game.SendHandInteraction(2, this.game.BlockSelection, this.game.EntitySelection, beforeUseType, EnumHandInteractNw.CancelBlockUse, false, EnumItemUseCancelReason.ReleasedMouse);
+
+
+            //(capi.World as ClientMain)?.SendHandInteraction(2, blockSel, null, EnumHandInteract.HeldItemInteract, EnumHandInteractNw.StartHeldItemUse, true);
+
+
             ItemSlot slot = this.capi.World.Player.InventoryManager.ActiveHotbarSlot;
             CollectibleObject collectibleObject;
             if (slot == null)
@@ -629,6 +623,70 @@ namespace AutomaticChiselling
                 slot.MarkDirty();
             }
         }
+
+
+        private void ChiselReminder()
+        {
+            if(capi.ElapsedMilliseconds - lastReminder > 2000) 
+            {
+                capi.ShowChatMessage("Take the chisel in your hand and don't let go!!!");
+                lastReminder = capi.ElapsedMilliseconds;
+            }
+        }
+
+        private bool ChiselDetecter() 
+        {
+            IPlayerInventoryManager inventoryManager = capi.World.Player.InventoryManager;
+            ItemSlot itemSlot = ((inventoryManager != null) ? inventoryManager.ActiveHotbarSlot : null);
+            ItemSlot slot = itemSlot;
+            object obj;
+            if (slot == null)
+            {
+                obj = null;
+            }
+            else
+            {
+                ItemStack itemstack = slot.Itemstack;
+                obj = ((itemstack != null) ? itemstack.Collectible : null);
+            }
+            ItemChisel itemChisel = obj as ItemChisel;
+            if (itemChisel == null)
+            {
+                return false;
+            }
+            return true;
+        }
+
+
+        
+
+        public bool SetPacketPerIteration(int packetLimit) 
+        {
+            if (packetLimit >= 1 && packetLimit <= 100)
+            {
+                packetPerIteration = packetLimit;
+                return true;
+            }
+            else 
+            {
+                capi.ShowChatMessage("The packet limit value must be from 1 to 50.");
+                return false;
+            }
+        }
+
+        private void UpdateChiselsMashs() 
+        {
+            foreach (var item in myVox.GetModelHighlightList())
+            {
+                BlockEntityMicroBlock BEMicroBlock = capi.World.BlockAccessor.GetBlockEntity<BlockEntityMicroBlock>(item);
+                if (BEMicroBlock != null) 
+                {
+                    BEMicroBlock.MarkMeshDirty();
+                }
+            }
+        }
+
+        
 
 
 

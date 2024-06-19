@@ -17,6 +17,7 @@ using Vintagestory.API.Common.CommandAbbr;
 
 
 
+
 namespace AutomaticChiselling
 {
     public enum ModelAllign
@@ -47,6 +48,7 @@ namespace AutomaticChiselling
         {
             capi = api;
             RegisterVoxCommands(api);
+            Patchs.PatchAll();
 
             // api.Logger.Notification("Hello from template mod client side: " + Lang.Get("anvys:hello"));
         }
@@ -130,7 +132,7 @@ namespace AutomaticChiselling
             .WithDescription("Set packet limit per iteration.")
             .WithArgs(new ICommandArgumentParser[]
             {
-                parsers.IntRange("Packet limit per iteration", 1, 50)
+                parsers.IntRange("Packet limit per iteration", 1, 100)
             })
             .HandleWith(delegate (TextCommandCallingArgs args)
             {
@@ -301,7 +303,7 @@ namespace AutomaticChiselling
                 return TextCommandResult.Success("First start the chiseling process");
             }
 
-            if (conveyor.СhisellingActive())
+            if (!conveyor.СhisellingActive())
             {
                 return TextCommandResult.Success("First start the chiseling process");
             }
